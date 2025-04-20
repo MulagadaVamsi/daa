@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Robot Path Finder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-purple-300 via-pink-200 to-yellow-200 min-h-screen flex flex-col items-center justify-center">
+  <h1 class="text-3xl font-bold text-gray-800 drop-shadow-md mb-4">Robot Path Finder</h1>
+
+  <div class="flex space-x-4 mb-4">
+    <button onclick="setMode('wall')" class="px-4 py-2 bg-gray-800 text-white rounded">Set Wall</button>
+    <button onclick="setMode('start')" class="px-4 py-2 bg-white border border-gray-800 rounded">Set Start</button>
+    <button onclick="setMode('end')" class="px-4 py-2 bg-white border border-gray-800 rounded">Set End</button>
+  </div>
+
+  <div id="grid" class="grid grid-cols-10 gap-1 bg-white p-4 rounded-xl shadow-lg transition-transform duration-1000"></div>
+
+  <div class="flex space-x-4 mt-6">
+    <button onclick="visualizePath()" class="px-4 py-2 bg-blue-500 text-white rounded">Visualize Path</button>
+    <button onclick="resetGrid()" class="px-4 py-2 bg-white border border-gray-800 rounded">Reset Grid</button>
+  </div>
+
+  <div id="outputMessage" class="text-center text-lg font-bold mt-4"></div>
+
+  <script>
+    const numRows = 10;
+    const numCols = 10;
+    const gridElement = document.getElementById("grid");
+    const outputMessage = document.getElementById("outputMessage");
+    let mode = "wall";
+    let grid = [];
+    let start = { row: 0, col: 0 };
+    let end = { row: numRows - 1, col: numCols - 1 };
+
+    function setMode(newMode) {
+      mode = newMode;
+    }
+
+    function createGrid() {
+      grid = [];
+      gridElement.innerHTML = "";
+      for (let row = 0; row < numRows; row++) {
+        const currentRow = [];
+        for (let col = 0; col < numCols; col++) {
+          const cell = {
+            row,
+            col,
+            isWall: Math.random() < 0.2 && !(row === 0 && col === 0) && !(row === numRows - 1 && col === numCols - 1),
+            isStart: row === 0 && col === 0,
+            isEnd: row === numRows - 1 && col === numCols - 1,
+            element: null
+          };
+
+          const cellDiv = document.createElement("div");
+          cellDiv.className = w-8 h-8 border rounded-md flex items-center justify-center transition-all duration-300 cursor-pointer ${cell.isStart ? 'bg-green-500' : cell.isEnd ? 'bg-green-500' : cell.isWall ? 'bg-red-500' : 'bg-black'};
+          if (cell.isStart) cellDiv.innerHTML = "🤖";
+          cellDiv.onclick = () => handleCellClick(cell);
+          gridElement.appendChild(cellDiv);
+          cell.element = cellDiv;
+          currentRow.push(cell);
+        }
+        grid.push(currentRow);
+      }
+    }
+
+    function handleCellClick(cell) {
+      if (mode === "wall") {
+        cell.isWall = !cell.isWall;
+        cell.element.className = w-8 h-8 border rounded-md flex items-center justify-center transition-all duration-300 cursor-pointer ${cell.isWall ? 'bg-red-500' : 'bg-black'};
+      } else if (mode === "start") {
+        grid[start.row][start.col].isStart = false;
+        grid[start.row][start.col].element.innerHTML = "";
+        grid[start.row][start.col].element.classList.remove("bg-green-500");
+        start = { row: cell.row, col: cell.col };
+        cell.isStart = true;
+        cell.element.classList.add("bg-green-500");
+        cell.element.innerHTML = "🤖";
+      } else if (mode === "end") {
+        grid[end.row][end.col].isEnd = false;
+        grid[end.row][end.col].element.classList.remove("bg-green-500");
+        end = { row: cell.row, col: cell.col };
+        cell.isEnd = true;
+        cell.element.classList.add("bg-green-500");
+      }
+    }
+
+    async function visualizePath() {
+      const visited = new Set();
+      const queue = [{ row: start.row, col: start.col, path: [] }];
+      let found = false;
+
+      while (queue.length > 0) {
+        const { row, col, path } = queue.shift();
+        const key = ${row},${col};
+        if (
+          row < 0 || row >= numRows ||
+          col < 0 || col >= numCols ||
+          visited.has(key) ||
+          grid[row][col].isWall
+        ) continue;
+
+        visited.add(key);
+        const newPath = [...path, { row, col }];
+        if (row === end.row && col === end.col) {
+          for (let i = 0; i < newPath.length; i++) {
+            const pos = newPath[i];
+            const cell = grid[pos.row][pos.col];
+            if (!cell.isStart && !cell.isEnd) {
+              await new Promise(r => setTimeout(r, 100));
+              cell.element.classList.remove("bg-black");
+              cell.element.classList.add("bg-yellow-300");
+              cell.element.innerHTML = "🤖";
+            }
+          }
+          found = true;
+          break;
+        }
+
+        queue.push({ row: row + 1, col, path: newPath });
+        queue.push({ row: row - 1, col, path: newPath });
+        queue.push({ row, col: col + 1, path: newPath });
+        queue.push({ row, col: col - 1, path: newPath });
+      }
+
+      // Flip board and show result
+      gridElement.classList.add("rotate-180");
+      outputMessage.innerText = found ? "✅ Optimal Path Found!" : "❌ No Path Found!";
+      outputMessage.classList.add(found ? "text-green-700" : "text-red-600");
+    }
+
+    function resetGrid() {
+      gridElement.classList.remove("rotate-180");
+      outputMessage.innerText = "";
+      outputMessage.classList.remove("text-green-700", "text-red-600");
+      createGrid();
+    }
+
+    // Init
+    createGrid();
+  </script>
+</body>
+</html>
